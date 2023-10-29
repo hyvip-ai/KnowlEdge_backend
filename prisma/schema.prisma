@@ -50,7 +50,7 @@ model User {
   invitedBy      User?        @relation("ParentId", fields: [invitedById], references: [id])
   invitedMembers User[]       @relation("ParentId")
   organizationId String
-  Organization   Organization @relation(fields: [organizationId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id])
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
@@ -75,7 +75,7 @@ model ChatRoom {
   id             String       @id @unique @default(uuid())
   name           String
   organizationId String
-  Organization   Organization @relation(fields: [organizationId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id])
   files          File[]
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
