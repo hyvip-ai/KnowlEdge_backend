@@ -1,0 +1,84 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  USER
+}
+
+enum SUBSCRIPTION {
+  SOLO
+  STARTUP
+  ENTERPRISE
+  CUSTOM
+}
+
+model Organization {
+  id           String       @id @unique @default(uuid())
+  name         String       @unique
+  email        String       @unique
+  users        User[]
+  chatRooms    ChatRoom[]
+  subscription SUBSCRIPTION @default(SOLO)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@index([name])
+  @@index([email])
+  @@map("organizations")
+}
+
+model User {
+  id             String       @id @unique @default(uuid())
+  name           String
+  email          String       @unique
+  role           Role         @default(USER)
+  password       String
+  passwordToken  String?
+  invitedById    String?
+  invitedBy      User?        @relation("ParentId", fields: [invitedById], references: [id])
+  invitedMembers User[]       @relation("ParentId")
+  organizationId String
+  Organization   Organization @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([name])
+  @@index([email])
+  @@map("users")
+}
+
+model File {
+  id         String   @id @unique @default(uuid())
+  key        String
+  file       String
+  chatRoomId String
+  chatRoom   ChatRoom @relation(fields: [chatRoomId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("files")
+}
+
+model ChatRoom {
+  id             String       @id @unique @default(uuid())
+  name           String
+  organizationId String
+  Organization   Organization @relation(fields: [organizationId], references: [id])
+  files          File[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([name])
+  @@map("chat_rooms")
+}
