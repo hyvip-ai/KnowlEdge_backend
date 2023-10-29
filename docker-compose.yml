@@ -1,0 +1,14 @@
+version: '2.15.8'
+services:
+  knowledge-db:
+    image: postgres:13
+    ports:
+      - 5436:5432
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 1234
+      POSTGRES_DB: knowledge
+    networks:
+      - KnowlEdgeV1
+networks:
+  KnowlEdgeV1:

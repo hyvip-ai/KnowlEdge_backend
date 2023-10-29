@@ -26,7 +26,8 @@ enum SUBSCRIPTION {
 model Organization {
   id           String       @id @unique @default(uuid())
   name         String       @unique
-  email        String       @unique
+  email        String?      @unique
+  openAIApiKey String?      @unique
   users        User[]
   chatRooms    ChatRoom[]
   subscription SUBSCRIPTION @default(SOLO)
