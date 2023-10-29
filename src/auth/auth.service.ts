@@ -88,7 +88,6 @@ export class AuthService {
         user.email,
         user.role,
         user.organizationId,
-        data.rememberMe,
       );
 
       // Set refresh token in httpOnly cookie whenever member logs in
@@ -193,7 +192,6 @@ export class AuthService {
     email: string,
     role: string,
     organizationId: string,
-    rememberMe: boolean,
   ): Promise<{ accessToken: string; refreshToken: string }> {
     const at = this.jwtService.signAsync(
       {
@@ -216,7 +214,7 @@ export class AuthService {
         organizationId,
       },
       {
-        expiresIn: rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 24 * 365,
+        expiresIn: 60 * 60 * 24 * 365,
         secret: this.config.get('REFRESH_TOKEN_SECRET'),
       },
     );
