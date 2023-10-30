@@ -4,7 +4,9 @@ import { CreateChatRoomDTO } from './dto';
 import { Roles, User } from 'src/decorators';
 import { Role } from '@prisma/client';
 import { RolesGuard } from 'src/guards';
+import { ApiTags } from '@nestjs/swagger';
 
+@ApiTags('Chat Room')
 @Controller('/chat-room')
 export class ChatRoomController {
   constructor(private chatRoomService: ChatRoomService) {}
