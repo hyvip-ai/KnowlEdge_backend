@@ -1,0 +1,21 @@
+import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { ChatRoomService } from './chat-room.service';
+import { CreateChatRoomDTO } from './dto';
+import { Roles, User } from 'src/decorators';
+import { Role } from '@prisma/client';
+import { RolesGuard } from 'src/guards';
+
+@UseGuards(RolesGuard)
+@Roles(Role.ADMIN)
+@Controller('/chat-room')
+export class ChatRoomController {
+  constructor(private chatRoomService: ChatRoomService) {}
+
+  @Post('/')
+  createChatRoom(
+    @User('organizationId') organizationId: string,
+    @Body() data: CreateChatRoomDTO,
+  ) {
+    return this.chatRoomService.createChatRoom(organizationId, data);
+  }
+}

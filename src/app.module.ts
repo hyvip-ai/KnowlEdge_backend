@@ -7,6 +7,8 @@ import { CommonModule } from './common/common.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './guards';
 import { ConfigModule } from '@nestjs/config';
+import { ChatRoomModule } from './chat-room/chat-room.module';
+import { FileModule } from './file/file.module';
 
 @Module({
   imports: [
@@ -16,6 +18,8 @@ import { ConfigModule } from '@nestjs/config';
     PrismaModule,
     AuthModule,
     CommonModule,
+    ChatRoomModule,
+    FileModule,
   ],
   controllers: [AppController],
   providers: [

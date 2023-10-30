@@ -18,9 +18,7 @@ enum Role {
 
 enum SUBSCRIPTION {
   SOLO
-  STARTUP
-  ENTERPRISE
-  CUSTOM
+  TEAM
 }
 
 model Organization {
@@ -40,19 +38,20 @@ model Organization {
 }
 
 model User {
-  id             String       @id @unique @default(uuid())
-  name           String
-  email          String       @unique
-  role           Role         @default(USER)
-  password       String
-  passwordToken  String?
-  invitedById    String?
-  invitedBy      User?        @relation("ParentId", fields: [invitedById], references: [id])
-  invitedMembers User[]       @relation("ParentId")
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  id                 String       @id @unique @default(uuid())
+  name               String
+  email              String       @unique
+  role               Role         @default(USER)
+  password           String
+  passwordToken      String?
+  invitedById        String?
+  planExpirationDate DateTime?
+  invitedBy          User?        @relation("ParentId", fields: [invitedById], references: [id])
+  invitedMembers     User[]       @relation("ParentId")
+  organizationId     String
+  organization       Organization @relation(fields: [organizationId], references: [id])
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
 
   @@index([name])
   @@index([email])
