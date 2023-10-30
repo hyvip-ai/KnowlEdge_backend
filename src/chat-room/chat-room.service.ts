@@ -12,6 +12,7 @@ export class ChatRoomService {
       const chatRoom = await this.prisma.chatRoom.create({
         data: {
           name: data.name,
+          description: data.description || '',
           organizationId,
         },
         select: {
@@ -23,5 +24,21 @@ export class ChatRoomService {
     } catch (err) {
       this.common.generateErrorResponse(err, 'Chat room');
     }
+  }
+
+  async allChatRooms(organizationId: string) {
+    const chatRooms = await this.prisma.chatRoom.findMany({
+      where: {
+        organizationId,
+      },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        files: true,
+      },
+    });
+
+    return { data: chatRooms, message: 'SUCCESS', statusCode: 200 };
   }
 }

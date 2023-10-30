@@ -1,4 +1,4 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { ChatRoomService } from './chat-room.service';
 import { CreateChatRoomDTO } from './dto';
 import { Roles, User } from 'src/decorators';
@@ -17,5 +17,10 @@ export class ChatRoomController {
     @Body() data: CreateChatRoomDTO,
   ) {
     return this.chatRoomService.createChatRoom(organizationId, data);
+  }
+
+  @Get('/')
+  allChatRooms(@User('organizationId') organizationId: string) {
+    return this.chatRoomService.allChatRooms(organizationId);
   }
 }

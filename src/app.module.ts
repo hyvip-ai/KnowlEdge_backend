@@ -9,6 +9,7 @@ import { JwtAuthGuard } from './guards';
 import { ConfigModule } from '@nestjs/config';
 import { ChatRoomModule } from './chat-room/chat-room.module';
 import { FileModule } from './file/file.module';
+import { UserModule } from './user/user.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { FileModule } from './file/file.module';
     CommonModule,
     ChatRoomModule,
     FileModule,
+    UserModule,
   ],
   controllers: [AppController],
   providers: [
