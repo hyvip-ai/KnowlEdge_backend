@@ -5,12 +5,12 @@ import { Roles, User } from 'src/decorators';
 import { Role } from '@prisma/client';
 import { RolesGuard } from 'src/guards';
 
-@UseGuards(RolesGuard)
-@Roles(Role.ADMIN)
 @Controller('/chat-room')
 export class ChatRoomController {
   constructor(private chatRoomService: ChatRoomService) {}
 
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN)
   @Post('/')
   createChatRoom(
     @User('organizationId') organizationId: string,

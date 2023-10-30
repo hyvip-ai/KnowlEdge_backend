@@ -14,6 +14,7 @@ import { JwtPayload } from './types';
 import { ConfigService } from '@nestjs/config';
 import { Response } from 'express';
 import * as argon2 from 'argon2';
+import { Role } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -38,6 +39,7 @@ export class AuthService {
             },
           },
           password: passwordHash,
+          role: Role.ADMIN,
         },
         select: {
           id: true,

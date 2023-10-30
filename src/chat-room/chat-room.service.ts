@@ -39,6 +39,11 @@ export class ChatRoomService {
       },
     });
 
-    return { data: chatRooms, message: 'SUCCESS', statusCode: 200 };
+    const modifiedChatRoom = chatRooms.map((chatRoom) => ({
+      ...chatRoom,
+      files: chatRoom.files.length,
+    }));
+
+    return { data: modifiedChatRoom, message: 'SUCCESS', statusCode: 200 };
   }
 }
