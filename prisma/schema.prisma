@@ -58,25 +58,12 @@ model User {
   @@map("users")
 }
 
-model File {
-  id         String   @id @unique @default(uuid())
-  key        String
-  file       String
-  chatRoomId String
-  chatRoom   ChatRoom @relation(fields: [chatRoomId], references: [id])
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  @@map("files")
-}
-
 model ChatRoom {
   id             String       @id @unique @default(uuid())
   name           String
   description    String?
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
-  files          File[]
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 

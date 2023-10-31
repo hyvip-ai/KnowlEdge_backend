@@ -10,6 +10,7 @@ import { ConfigModule } from '@nestjs/config';
 import { ChatRoomModule } from './chat-room/chat-room.module';
 import { FileModule } from './file/file.module';
 import { UserModule } from './user/user.module';
+import { OrganizationModule } from './organization/organization.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { UserModule } from './user/user.module';
     ChatRoomModule,
     FileModule,
     UserModule,
+    OrganizationModule,
   ],
   controllers: [AppController],
   providers: [

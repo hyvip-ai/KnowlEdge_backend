@@ -35,15 +35,43 @@ export class ChatRoomService {
         id: true,
         name: true,
         description: true,
-        files: true,
       },
     });
 
     const modifiedChatRoom = chatRooms.map((chatRoom) => ({
       ...chatRoom,
-      files: chatRoom.files.length,
     }));
 
     return { data: modifiedChatRoom, message: 'SUCCESS', statusCode: 200 };
+  }
+
+  async chatRoomDetails(chatRoomId: string) {
+    const chatRoom = await this.prisma.chatRoom.findUnique({
+      where: {
+        id: chatRoomId,
+      },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+      },
+    });
+    return { data: chatRoom, message: 'SUCCESS', statusCode: 200 };
+  }
+
+  async editChatRoomDetails(chatRoomId: string, data: CreateChatRoomDTO) {
+    try {
+      await this.prisma.chatRoom.update({
+        where: {
+          id: chatRoomId,
+        },
+        data: {
+          name: data.name,
+          description: data.description,
+        },
+      });
+    } catch (err) {
+      this.common.generateErrorResponse(err, 'Chat Room');
+    }
   }
 }
