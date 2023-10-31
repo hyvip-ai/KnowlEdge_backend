@@ -21,6 +21,11 @@ enum SUBSCRIPTION {
   TEAM
 }
 
+enum Status {
+  PENDING
+  READY
+}
+
 model Organization {
   id           String       @id @unique @default(uuid())
   name         String       @unique
@@ -64,6 +69,7 @@ model ChatRoom {
   description    String?
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
+  status         Status       @default(PENDING)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 

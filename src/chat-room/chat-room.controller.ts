@@ -34,16 +34,27 @@ export class ChatRoomController {
     return this.chatRoomService.allChatRooms(organizationId);
   }
 
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN)
   @Get('/:id')
   chatRoomDetails(@Param('id') chatRoomId: string) {
     return this.chatRoomService.chatRoomDetails(chatRoomId);
   }
 
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN)
   @Patch('/:id')
   editChatRoomDetails(
     @Param('id') chatRoomId: string,
     @Body() data: CreateChatRoomDTO,
   ) {
     return this.chatRoomService.editChatRoomDetails(chatRoomId, data);
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN)
+  @Post('/:id/load')
+  loadFiles(@Param('id') chatroomId: string) {
+    return this.chatRoomService.loadFiles(chatroomId);
   }
 }
