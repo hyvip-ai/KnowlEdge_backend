@@ -11,6 +11,7 @@ import { ChatRoomModule } from './chat-room/chat-room.module';
 import { FileModule } from './file/file.module';
 import { UserModule } from './user/user.module';
 import { OrganizationModule } from './organization/organization.module';
+import { MailModule } from './mail/mail.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { OrganizationModule } from './organization/organization.module';
     FileModule,
     UserModule,
     OrganizationModule,
+    MailModule,
   ],
   controllers: [AppController],
   providers: [

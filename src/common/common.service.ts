@@ -52,6 +52,15 @@ Helpful answer in markdown:`;
     throw new InternalServerErrorException('Something went wrong');
   }
 
+  customToken() {
+    const bufferValue = Buffer.alloc(64);
+    for (let i = 0; i < bufferValue.length; i++) {
+      bufferValue[i] = Math.floor(Math.random() * 256);
+    }
+    const token = bufferValue.toString('base64');
+    return token;
+  }
+
   getSupabaseClient() {
     if (this.supabaseClient) {
       return this.supabaseClient;

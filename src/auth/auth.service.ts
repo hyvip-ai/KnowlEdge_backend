@@ -15,6 +15,7 @@ import { ConfigService } from '@nestjs/config';
 import { Response } from 'express';
 import * as argon2 from 'argon2';
 import { Role } from '@prisma/client';
+import { MailService } from 'src/mail/mail.service';
 
 @Injectable()
 export class AuthService {
@@ -23,10 +24,16 @@ export class AuthService {
     private common: CommonService,
     private config: ConfigService,
     private jwtService: JwtService,
+    private mailService: MailService,
   ) {}
 
   async signUp(data: SignupDTO) {
     try {
+      await this.mailService.onBoardingEmail(
+        'John Doe',
+        'rajat.abcx@gmail.com',
+      );
+      return;
       const passwordHash = await this.common.hashData(data.password);
 
       const user = await this.prisma.user.create({
