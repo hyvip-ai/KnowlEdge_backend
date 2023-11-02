@@ -95,8 +95,8 @@ export class ChatRoomService {
 
     if (!chatRoom) throw new BadRequestException('Chat room not found');
 
-    await this.common.loadPDFs(chatRoom.id, chatRoom.organization.name);
     try {
+      await this.common.loadPDFs(chatRoom.id, chatRoom.organization.name);
       await this.prisma.chatRoom.update({
         where: {
           id: chatroomId,
@@ -106,7 +106,8 @@ export class ChatRoomService {
         },
       });
     } catch (err) {
-      this.common.generateErrorResponse(err, 'Load Pdf');
+      console.log(err);
+      throw new BadRequestException(err.message);
     }
   }
 }

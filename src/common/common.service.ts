@@ -14,7 +14,7 @@ import { WebPDFLoader } from 'langchain/document_loaders/web/pdf';
 import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
 import { OpenAIEmbeddings } from 'langchain/embeddings/openai';
 import { PineconeStore } from 'langchain/vectorstores/pinecone';
-import { questionGeneratorChain } from 'src/llm';
+import { qaChain, questionGeneratorChain } from 'src/llm';
 import { RunnableSequence } from 'langchain/schema/runnable';
 import { VectorStoreRetriever } from 'langchain/dist/vectorstores/base';
 import { formatDocumentsAsString } from 'langchain/util/document';
@@ -75,65 +75,50 @@ export class CommonService {
   }
 
   async getChunkedDocsFromPDF(pdfPaths: string[]) {
-    try {
-      const allChunkedDocs: Document<Record<string, any>>[] = [];
-      for (const pdfPath of pdfPaths) {
-        const pdfBlob = await fetch(pdfPath).then((res) => res.blob());
-        const loader = new WebPDFLoader(pdfBlob);
-        const docs = await loader.load();
+    const allChunkedDocs: Document<Record<string, any>>[] = [];
+    for (const pdfPath of pdfPaths) {
+      const pdfBlob = await fetch(pdfPath).then((res) => res.blob());
+      const loader = new WebPDFLoader(pdfBlob);
+      const docs = await loader.load();
 
-        const textSplitter = new RecursiveCharacterTextSplitter({
-          chunkSize: 1000,
-          chunkOverlap: 200,
-        });
+      const textSplitter = new RecursiveCharacterTextSplitter({
+        chunkSize: 1000,
+        chunkOverlap: 200,
+      });
 
-        const chunkedDocs = await textSplitter.splitDocuments(docs);
-        allChunkedDocs.push(...chunkedDocs);
-      }
-      return allChunkedDocs;
-    } catch (err) {
-      console.log('error while creating chunks of pdfs');
-      console.log(err);
+      const chunkedDocs = await textSplitter.splitDocuments(docs);
+      allChunkedDocs.push(...chunkedDocs);
     }
+    return allChunkedDocs;
   }
 
   async embedAndStoreDocs(
     client: Pinecone,
     docs: Document<Record<string, any>>[],
   ) {
-    try {
-      const embeddings = new OpenAIEmbeddings({
-        openAIApiKey: this.config.get('OPENAI_APIKEY'),
-      });
-      const index = client.Index(this.config.get('PINECONE_INDEX'));
+    const embeddings = new OpenAIEmbeddings({
+      openAIApiKey: this.config.get('OPENAI_APIKEY'),
+    });
+    const index = client.Index(this.config.get('PINECONE_INDEX'));
 
-      await PineconeStore.fromDocuments(docs, embeddings, {
-        pineconeIndex: index,
-        textKey: 'text',
-      });
-    } catch (error) {
-      console.log('Failed to load your docs!');
-      console.log(error);
-    }
+    await PineconeStore.fromDocuments(docs, embeddings, {
+      pineconeIndex: index,
+      textKey: 'text',
+    });
   }
 
   async getVectorStore(client: Pinecone) {
-    try {
-      const embeddings = new OpenAIEmbeddings({
-        openAIApiKey: this.config.get('OPENAI_APIKEY'),
-      });
-      const index = client.Index(this.config.get('PINECONE_INDEX'));
+    const embeddings = new OpenAIEmbeddings({
+      openAIApiKey: this.config.get('OPENAI_APIKEY'),
+    });
+    const index = client.Index(this.config.get('PINECONE_INDEX'));
 
-      const vectorStore = await PineconeStore.fromExistingIndex(embeddings, {
-        pineconeIndex: index,
-        textKey: 'text',
-      });
+    const vectorStore = await PineconeStore.fromExistingIndex(embeddings, {
+      pineconeIndex: index,
+      textKey: 'text',
+    });
 
-      return vectorStore;
-    } catch (error) {
-      console.log('Something went wrong while getting vector store !');
-      console.log(error);
-    }
+    return vectorStore;
   }
 
   async formatChatHistory() {
@@ -150,7 +135,6 @@ export class CommonService {
       });
 
     if (error) {
-      console.log('Error while fetching files from database');
       throw new HttpException(
         {
           message: error.message,
@@ -181,7 +165,6 @@ export class CommonService {
         );
 
     if (signedURLError) {
-      console.log('Error while fetching signed urls');
       throw new HttpException(
         {
           message: signedURLError.message,
@@ -194,16 +177,9 @@ export class CommonService {
 
     const allPdfPaths = signedURLData.map((file) => file.signedUrl);
 
-    try {
-      console.log('Getting pinecone client');
-      const pineconeClient = this.getPineconeClient();
-      console.log('Creating chunks');
-      const chunkedDocs = await this.getChunkedDocsFromPDF(allPdfPaths);
-      console.log('creating embeddings and storing chunked docs');
-      await this.embedAndStoreDocs(pineconeClient, chunkedDocs);
-    } catch (err) {
-      console.log('Error while loading pdf in vector db');
-    }
+    const pineconeClient = this.getPineconeClient();
+    const chunkedDocs = await this.getChunkedDocsFromPDF(allPdfPaths);
+    await this.embedAndStoreDocs(pineconeClient, chunkedDocs);
   }
 
   async performQuestionAnswering(data: {
@@ -211,31 +187,34 @@ export class CommonService {
     chatHistory: string | null;
     context: Array<Document>;
   }) {
-    console.log('Question');
-    console.log(data.question);
     console.log('Chat History');
     console.log(data.chatHistory);
-    console.log('Context');
-    console.log(data.context);
 
     const newQuestion = data.question;
-
+    const chatHistoryString = null;
     const serializedContext = formatDocumentsAsString(data.context);
 
-    console.log('serializedContext');
-    console.log(serializedContext);
+    console.log(data.context);
 
-    // if (data.chatHistory) {
-    //   const answer = await questionGeneratorChain.invoke({
-    //     context: serializedContext,
-    //     chatHistory: data.chatHistory,
-    //     question: newQuestion,
-    //   });
+    if (data.chatHistory) {
+      const answer = await questionGeneratorChain.invoke({
+        context: serializedContext,
+        chatHistory: data.chatHistory,
+        question: newQuestion,
+      });
 
-    //   console.log(answer);
-    // }
+      console.log(answer);
+    }
 
-    // console.log(newQuestion);
+    const { text } = await qaChain.invoke({
+      chatHistory: chatHistoryString ?? '',
+      context: serializedContext,
+      question: newQuestion,
+    });
+
+    const firstTwoDocuments = data.context.slice(0, 2);
+
+    return { response: text, context: firstTwoDocuments };
   }
 
   getChain(retriever: VectorStoreRetriever<PineconeStore>) {
@@ -250,7 +229,6 @@ export class CommonService {
           const relatedDocs = await retriever.getRelevantDocuments(
             input.question,
           );
-          console.log(relatedDocs);
           return relatedDocs;
         },
       },
@@ -265,7 +243,7 @@ export class CommonService {
     const vectorStore = await this.getVectorStore(pineconeClient);
     const retriever = vectorStore.asRetriever();
     const chain = this.getChain(retriever);
-    await chain.invoke({
+    return await chain.invoke({
       question: data.question,
       chatHistory: data.chatHistory,
     });

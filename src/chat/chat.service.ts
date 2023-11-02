@@ -8,8 +8,10 @@ export class ChatService {
 
   async chat(data: ChatDTO) {
     try {
-      await this.common.generateAIResponse({ question: data.question });
-      return { data: {}, message: 'SUCCESS', statusCode: 200 };
+      const res = await this.common.generateAIResponse({
+        question: data.question,
+      });
+      return { data: res, message: 'SUCCESS', statusCode: 200 };
     } catch (err) {
       console.log(err);
       throw new BadRequestException(err.message);

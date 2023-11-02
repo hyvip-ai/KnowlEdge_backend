@@ -55,6 +55,9 @@ export class AuthService {
           organization: { select: { name: true } },
         },
       });
+
+      await this.mailService.onBoardingEmail(user.name, user.email);
+
       return {
         message: 'New user created successfully',
         statusCode: 201,
@@ -218,7 +221,7 @@ export class AuthService {
           passwordToken: true,
         },
       });
-      this.mailService.forgotPasswordEmail(
+      await this.mailService.forgotPasswordEmail(
         user.email,
         user.name,
         encodeURIComponent(token),
@@ -265,7 +268,8 @@ export class AuthService {
           password: hash,
         },
       });
-      this.mailService.resetPasswordEmail(user.email, user.name);
+
+      await this.mailService.resetPasswordEmail(user.email, user.name);
 
       return {
         data: {},

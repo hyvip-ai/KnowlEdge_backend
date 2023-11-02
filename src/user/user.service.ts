@@ -139,6 +139,7 @@ export class UserService {
         data: {
           name: data.name,
           password: hashedPassword,
+          passwordToken: null,
         },
       });
     } catch (err) {

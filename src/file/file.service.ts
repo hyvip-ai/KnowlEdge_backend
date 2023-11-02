@@ -13,8 +13,6 @@ export class FileService {
   ) {}
 
   async uploadFile(chatRoomId: string, file: Express.Multer.File) {
-    console.log(file);
-
     const chatRoom = await this.prisma.chatRoom.findUnique({
       where: {
         id: chatRoomId,
