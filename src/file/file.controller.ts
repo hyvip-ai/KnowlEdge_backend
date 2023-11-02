@@ -9,11 +9,15 @@ import {
   Post,
   Query,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FileService } from './file.service';
+import { RolesGuard } from 'src/guards';
+import { Role } from '@prisma/client';
+import { Roles } from 'src/decorators';
 
 @ApiTags('File')
 @Controller('/file')
@@ -21,6 +25,8 @@ export class FileController {
   constructor(private fileService: FileService) {}
 
   @ApiOperation({ description: 'Upload a file to Supabase' })
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN)
   @Post('/upload')
   @UseInterceptors(FileInterceptor('file'))
   uploadFile(
@@ -54,6 +60,8 @@ export class FileController {
   }
 
   @ApiOperation({ description: 'Delete a file' })
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN)
   @Delete('/:fileName')
   deleteFile(
     @Query('chatRoomId') chatRoomId: string,

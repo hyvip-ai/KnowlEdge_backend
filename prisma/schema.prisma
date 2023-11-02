@@ -27,15 +27,16 @@ enum Status {
 }
 
 model Organization {
-  id           String       @id @unique @default(uuid())
-  name         String       @unique
-  email        String?      @unique
-  openAIApiKey String?      @unique
-  users        User[]
-  chatRooms    ChatRoom[]
-  subscription SUBSCRIPTION @default(SOLO)
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  id                         String       @id @unique @default(uuid())
+  name                       String       @unique
+  email                      String?      @unique
+  openAIApiKey               String?      @unique
+  users                      User[]
+  chatRooms                  ChatRoom[]
+  subscription               SUBSCRIPTION @default(SOLO)
+  subscriptionExpirationDate DateTime?
+  createdAt                  DateTime     @default(now())
+  updatedAt                  DateTime     @updatedAt
 
   @@index([name])
   @@index([email])
@@ -43,20 +44,19 @@ model Organization {
 }
 
 model User {
-  id                 String       @id @unique @default(uuid())
-  name               String
-  email              String       @unique
-  role               Role         @default(USER)
-  password           String
-  passwordToken      String?
-  invitedById        String?
-  planExpirationDate DateTime?
-  invitedBy          User?        @relation("ParentId", fields: [invitedById], references: [id])
-  invitedMembers     User[]       @relation("ParentId")
-  organizationId     String
-  organization       Organization @relation(fields: [organizationId], references: [id])
-  createdAt          DateTime     @default(now())
-  updatedAt          DateTime     @updatedAt
+  id             String       @id @unique @default(uuid())
+  name           String?
+  email          String       @unique
+  role           Role         @default(USER)
+  password       String?
+  passwordToken  String?
+  invitedById    String?
+  invitedBy      User?        @relation("ParentId", fields: [invitedById], references: [id])
+  invitedMembers User[]       @relation("ParentId")
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   @@index([name])
   @@index([email])

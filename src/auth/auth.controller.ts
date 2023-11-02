@@ -1,7 +1,12 @@
 import { Body, Controller, Post, Req, Res } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { SigninDTO, SignupDTO } from './dto';
+import {
+  ForgotPasswordDTO,
+  ResetPasswordDTO,
+  SigninDTO,
+  SignupDTO,
+} from './dto';
 import { Public } from 'src/guards';
 import { Request, Response } from 'express';
 
@@ -22,6 +27,20 @@ export class AuthController {
   @Post('/signin')
   signIn(@Body() data: SigninDTO, @Res({ passthrough: true }) res: Response) {
     return this.authService.signIn(data, res);
+  }
+
+  @ApiOperation({ description: 'User forgot password' })
+  @Public()
+  @Post('/forgot-password')
+  forgotPassword(@Body() data: ForgotPasswordDTO) {
+    return this.authService.forgotPassword(data);
+  }
+
+  @ApiOperation({ description: 'User reset password' })
+  @Public()
+  @Post('/reset-password')
+  resetPassword(@Body() data: ResetPasswordDTO) {
+    return this.authService.resetPassword(data);
   }
 
   @ApiOperation({ description: 'Get new access token' })

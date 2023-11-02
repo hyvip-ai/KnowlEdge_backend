@@ -12,6 +12,7 @@ import { FileModule } from './file/file.module';
 import { UserModule } from './user/user.module';
 import { OrganizationModule } from './organization/organization.module';
 import { MailModule } from './mail/mail.module';
+import { ChatModule } from './chat/chat.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { MailModule } from './mail/mail.module';
     UserModule,
     OrganizationModule,
     MailModule,
+    ChatModule,
   ],
   controllers: [AppController],
   providers: [

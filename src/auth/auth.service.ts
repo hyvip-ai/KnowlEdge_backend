@@ -6,7 +6,12 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { SigninDTO, SignupDTO } from './dto';
+import {
+  ForgotPasswordDTO,
+  ResetPasswordDTO,
+  SigninDTO,
+  SignupDTO,
+} from './dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CommonService } from 'src/common/common.service';
 import { JwtService } from '@nestjs/jwt';
@@ -29,11 +34,6 @@ export class AuthService {
 
   async signUp(data: SignupDTO) {
     try {
-      await this.mailService.onBoardingEmail(
-        'John Doe',
-        'rajat.abcx@gmail.com',
-      );
-      return;
       const passwordHash = await this.common.hashData(data.password);
 
       const user = await this.prisma.user.create({
@@ -61,12 +61,11 @@ export class AuthService {
         data: user,
       };
     } catch (err) {
-      this.common.generateErrorResponse(err, 'Member');
+      this.common.generateErrorResponse(err, 'User');
     }
   }
 
   async signIn(data: SigninDTO, res: Response) {
-    // Finding member with unique field email
     const user = await this.prisma.user.findFirst({
       where: {
         email: {
@@ -83,7 +82,6 @@ export class AuthService {
       },
     });
 
-    // If member exist then signin login
     if (!user) throw new BadRequestException('User not found');
 
     const pwMatches = await argon2.verify(user.password, data.password);
@@ -99,7 +97,6 @@ export class AuthService {
         user.organizationId,
       );
 
-      // Set refresh token in httpOnly cookie whenever member logs in
       res.cookie('refreshToken', refreshToken, {
         httpOnly: true,
         secure: true,
@@ -118,7 +115,7 @@ export class AuthService {
         },
       });
     } catch (err) {
-      this.common.generateErrorResponse(err, 'Member');
+      this.common.generateErrorResponse(err, 'User');
     }
   }
 
@@ -145,7 +142,7 @@ export class AuthService {
       },
     });
 
-    if (!user) throw new BadRequestException('Member not found');
+    if (!user) throw new BadRequestException('User not found');
 
     res.clearCookie('refreshToken', {
       httpOnly: true,
@@ -169,7 +166,6 @@ export class AuthService {
     } catch (err) {
       throw new UnauthorizedException('You are not authorized');
     }
-    // Find member
     const user = await this.prisma.user.findFirst({
       where: {
         id: data.sub,
@@ -182,18 +178,103 @@ export class AuthService {
       },
     });
 
-    // If no member throw error
     if (!user) throw new ForbiddenException('Access Denied');
 
-    // else generate access_token
     const accessToken = await this.generateAccessToken(
       user.id,
       user.email,
       user.role,
       user.organizationId,
     );
-    // Response
     return { data: { accessToken, role: user.role }, statusCode: 200 };
+  }
+
+  async forgotPassword(data: ForgotPasswordDTO) {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        email: data.email,
+      },
+      select: {
+        passwordToken: true,
+        id: true,
+        name: true,
+        email: true,
+      },
+    });
+
+    if (!user) throw new ForbiddenException('User not found');
+
+    if (user.passwordToken) throw new BadRequestException('Emil already sent');
+
+    const token = this.common.customToken();
+
+    try {
+      await this.prisma.user.update({
+        where: { email: data.email },
+        data: {
+          passwordToken: token,
+        },
+        select: {
+          passwordToken: true,
+        },
+      });
+      this.mailService.forgotPasswordEmail(
+        user.email,
+        user.name,
+        encodeURIComponent(token),
+      );
+      return {
+        data: {},
+        message: 'Email sent successfully',
+        statusCode: 200,
+      };
+    } catch (err) {
+      this.common.generateErrorResponse(err, 'User');
+    }
+  }
+
+  async resetPassword(data: ResetPasswordDTO) {
+    if (data.password !== data.passwordConfirmation) {
+      throw new BadRequestException(
+        'Password and password confirmation must be same',
+      );
+    }
+
+    const user = await this.prisma.user.findFirst({
+      where: {
+        passwordToken: data.token,
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+      },
+    });
+
+    if (!user) throw new ForbiddenException('User not found');
+
+    try {
+      const hash = await this.common.hashData(data.password);
+
+      await this.prisma.user.update({
+        where: {
+          id: user.id,
+        },
+        data: {
+          passwordToken: null,
+          password: hash,
+        },
+      });
+      this.mailService.resetPasswordEmail(user.email, user.name);
+
+      return {
+        data: {},
+        statusCode: 200,
+        message: 'password updated successfully',
+      };
+    } catch (err) {
+      this.common.generateErrorResponse(err, 'User');
+    }
   }
 
   async generateTokens(

@@ -14,6 +14,10 @@ import { WebPDFLoader } from 'langchain/document_loaders/web/pdf';
 import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
 import { OpenAIEmbeddings } from 'langchain/embeddings/openai';
 import { PineconeStore } from 'langchain/vectorstores/pinecone';
+import { questionGeneratorChain } from 'src/llm';
+import { RunnableSequence } from 'langchain/schema/runnable';
+import { VectorStoreRetriever } from 'langchain/dist/vectorstores/base';
+import { formatDocumentsAsString } from 'langchain/util/document';
 
 @Injectable()
 export class CommonService {
@@ -21,22 +25,6 @@ export class CommonService {
 
   private supabaseClient: SupabaseClient;
   private pineconeClient: Pinecone;
-
-  private STANDALONE_QUESTION_TEMPLATE = `Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question.
-
-Chat History:
-{chat_history}
-Follow Up Input: {question}
-Standalone question:`;
-
-  private QA_TEMPLATE = `You are an enthusiastic AI assistant or a tool.Tools makes mistakes, but they also learn from them. Use the following pieces of context to answer the question at the end.
-If you don't know the answer, just say you don't know. DO NOT try to make up an answer.I repeat do not try to make up something.
-If the question is not related to the context, politely respond that you are tuned to only answer questions that are related to the context.
-
-{context}
-
-Question: {question}
-Helpful answer in markdown:`;
 
   hashData(password: string) {
     return argon2.hash(password);
@@ -148,6 +136,10 @@ Helpful answer in markdown:`;
     }
   }
 
+  async formatChatHistory() {
+    return null;
+  }
+
   async loadPDFs(chatRoomId: string, organizationName: string) {
     const supabaseClient = this.getSupabaseClient();
     const { data, error } = await supabaseClient.storage
@@ -212,5 +204,70 @@ Helpful answer in markdown:`;
     } catch (err) {
       console.log('Error while loading pdf in vector db');
     }
+  }
+
+  async performQuestionAnswering(data: {
+    question: string;
+    chatHistory: string | null;
+    context: Array<Document>;
+  }) {
+    console.log('Question');
+    console.log(data.question);
+    console.log('Chat History');
+    console.log(data.chatHistory);
+    console.log('Context');
+    console.log(data.context);
+
+    const newQuestion = data.question;
+
+    const serializedContext = formatDocumentsAsString(data.context);
+
+    console.log('serializedContext');
+    console.log(serializedContext);
+
+    // if (data.chatHistory) {
+    //   const answer = await questionGeneratorChain.invoke({
+    //     context: serializedContext,
+    //     chatHistory: data.chatHistory,
+    //     question: newQuestion,
+    //   });
+
+    //   console.log(answer);
+    // }
+
+    // console.log(newQuestion);
+  }
+
+  getChain(retriever: VectorStoreRetriever<PineconeStore>) {
+    const chain = RunnableSequence.from([
+      {
+        question: (data: { question: string; chatHistory?: string }) => {
+          return data.question.trim().replace(/\n/g, ' ');
+        },
+        chatHistory: (data: { question: string; chatHistory?: string }) =>
+          data.chatHistory ?? '',
+        context: async (input: { question: string; chatHistory?: string }) => {
+          const relatedDocs = await retriever.getRelevantDocuments(
+            input.question,
+          );
+          console.log(relatedDocs);
+          return relatedDocs;
+        },
+      },
+      this.performQuestionAnswering,
+    ]);
+    return chain;
+  }
+
+  // { id, role, content } message
+  async generateAIResponse(data: { question: string; chatHistory?: string }) {
+    const pineconeClient = this.getPineconeClient();
+    const vectorStore = await this.getVectorStore(pineconeClient);
+    const retriever = vectorStore.asRetriever();
+    const chain = this.getChain(retriever);
+    await chain.invoke({
+      question: data.question,
+      chatHistory: data.chatHistory,
+    });
   }
 }
