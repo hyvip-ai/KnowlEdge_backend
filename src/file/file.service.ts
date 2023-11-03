@@ -32,6 +32,13 @@ export class FileService {
 
     if (!chatRoom) throw new BadRequestException('No chat room found');
 
+    const files = await this.filesByChatRoom(chatRoomId);
+
+    if (files.data.length === 2)
+      throw new BadRequestException(
+        'You can only upload maximum 2 files in a chatroom with SOLO plan',
+      );
+
     const supabaseClient = this.common.getSupabaseClient();
 
     const fileName = `${new Date().getTime()}_${file.originalname
@@ -94,10 +101,6 @@ export class FileService {
         offset: 0,
       });
 
-    const files = data.filter(
-      (file) => file.name !== '.emptyFolderPlaceholder',
-    );
-
     if (error) {
       throw new HttpException(
         {
@@ -108,6 +111,10 @@ export class FileService {
         (error as any).statusCode,
       );
     }
+
+    const files = data.filter(
+      (file) => file.name !== '.emptyFolderPlaceholder',
+    );
 
     return { data: files, message: 'SUCCESS', statusCode: 201 };
   }
