@@ -50,11 +50,4 @@ export class ChatRoomController {
   ) {
     return this.chatRoomService.editChatRoomDetails(chatRoomId, data);
   }
-
-  @UseGuards(RolesGuard)
-  @Roles(Role.ADMIN)
-  @Post('/:id/load')
-  loadFiles(@Param('id') chatroomId: string) {
-    return this.chatRoomService.loadFiles(chatroomId);
-  }
 }

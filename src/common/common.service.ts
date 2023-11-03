@@ -6,25 +6,25 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Pinecone } from '@pinecone-database/pinecone';
 import { SupabaseClient, createClient } from '@supabase/supabase-js';
 import * as argon2 from 'argon2';
 import { Document } from 'langchain/dist/document';
 import { WebPDFLoader } from 'langchain/document_loaders/web/pdf';
 import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
 import { OpenAIEmbeddings } from 'langchain/embeddings/openai';
-import { PineconeStore } from 'langchain/vectorstores/pinecone';
-import { qaChain, questionGeneratorChain } from 'src/llm';
+import { qaChain } from 'src/llm';
 import { RunnableSequence } from 'langchain/schema/runnable';
 import { VectorStoreRetriever } from 'langchain/dist/vectorstores/base';
 import { formatDocumentsAsString } from 'langchain/util/document';
+import { Chroma } from 'langchain/vectorstores/chroma';
+import { Status } from '@prisma/client';
+import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class CommonService {
-  constructor(private config: ConfigService) {}
+  constructor(private config: ConfigService, private prisma: PrismaService) {}
 
   private supabaseClient: SupabaseClient;
-  private pineconeClient: Pinecone;
 
   hashData(password: string) {
     return argon2.hash(password);
@@ -62,16 +62,19 @@ export class CommonService {
     return this.supabaseClient;
   }
 
-  getPineconeClient() {
-    if (this.pineconeClient) {
-      return this.pineconeClient;
-    }
-    this.pineconeClient = new Pinecone({
-      apiKey: this.config.get('PINECONE_APIKEY'),
-      environment: this.config.get('PINECONE_ENVIRONMENT'),
-    });
+  getCollectionName(data: { chatRoomId: string }) {
+    return `chat_room_${data.chatRoomId}`;
+  }
 
-    return this.pineconeClient;
+  async updateChatRoomStatus(chatRoomId: string, status: Status) {
+    return await this.prisma.chatRoom.update({
+      where: {
+        id: chatRoomId,
+      },
+      data: {
+        status,
+      },
+    });
   }
 
   async getChunkedDocsFromPDF(pdfPaths: string[]) {
@@ -93,39 +96,36 @@ export class CommonService {
   }
 
   async embedAndStoreDocs(
-    client: Pinecone,
     docs: Document<Record<string, any>>[],
+    openAIApiKey: string,
+    collectionName: string,
   ) {
     const embeddings = new OpenAIEmbeddings({
-      openAIApiKey: this.config.get('OPENAI_APIKEY'),
+      openAIApiKey,
     });
-    const index = client.Index(this.config.get('PINECONE_INDEX'));
 
-    await PineconeStore.fromDocuments(docs, embeddings, {
-      pineconeIndex: index,
-      textKey: 'text',
+    await Chroma.fromDocuments(docs, embeddings, {
+      collectionName,
     });
   }
 
-  async getVectorStore(client: Pinecone) {
+  async getVectorStore(openAIApiKey: string, collectionName: string) {
     const embeddings = new OpenAIEmbeddings({
-      openAIApiKey: this.config.get('OPENAI_APIKEY'),
+      openAIApiKey,
     });
-    const index = client.Index(this.config.get('PINECONE_INDEX'));
 
-    const vectorStore = await PineconeStore.fromExistingIndex(embeddings, {
-      pineconeIndex: index,
-      textKey: 'text',
+    const vectorStore = await Chroma.fromExistingCollection(embeddings, {
+      collectionName,
     });
 
     return vectorStore;
   }
 
-  async formatChatHistory() {
-    return null;
-  }
-
-  async loadPDFs(chatRoomId: string, organizationName: string) {
+  async startChat(
+    chatRoomId: string,
+    organizationName: string,
+    openAIApiKey: string,
+  ) {
     const supabaseClient = this.getSupabaseClient();
     const { data, error } = await supabaseClient.storage
       .from(this.config.get('SUPABASE_BUCKET_NAME'))
@@ -177,55 +177,71 @@ export class CommonService {
 
     const allPdfPaths = signedURLData.map((file) => file.signedUrl);
 
-    const pineconeClient = this.getPineconeClient();
     const chunkedDocs = await this.getChunkedDocsFromPDF(allPdfPaths);
-    await this.embedAndStoreDocs(pineconeClient, chunkedDocs);
+    await this.embedAndStoreDocs(
+      chunkedDocs,
+      openAIApiKey,
+      this.getCollectionName({ chatRoomId }),
+    );
+  }
+
+  async endChat() {
+    return null;
   }
 
   async performQuestionAnswering(data: {
     question: string;
-    chatHistory: string | null;
+    chatHistory?: { context: any[]; role: 'ai' | 'user'; content: string }[];
     context: Array<Document>;
   }) {
-    console.log('Chat History');
-    console.log(data.chatHistory);
-
     const newQuestion = data.question;
-    const chatHistoryString = null;
-    const serializedContext = formatDocumentsAsString(data.context);
+    const chatHistoryString = data.chatHistory.length
+      ? data.chatHistory
+          .map((message) => `${message.role}: ${message.content}\n\n`)
+          .join('')
+      : '';
 
-    console.log(data.context);
-
-    if (data.chatHistory) {
-      const answer = await questionGeneratorChain.invoke({
-        context: serializedContext,
-        chatHistory: data.chatHistory,
-        question: newQuestion,
-      });
-
-      console.log(answer);
-    }
+    const relevantContext = data.context.slice(0, 2);
+    const serializedContext = formatDocumentsAsString(relevantContext);
 
     const { text } = await qaChain.invoke({
-      chatHistory: chatHistoryString ?? '',
+      chatHistory: chatHistoryString,
       context: serializedContext,
       question: newQuestion,
     });
 
-    const firstTwoDocuments = data.context.slice(0, 2);
-
-    return { response: text, context: firstTwoDocuments };
+    return { response: text, context: relevantContext };
   }
 
-  getChain(retriever: VectorStoreRetriever<PineconeStore>) {
+  getChain(retriever: VectorStoreRetriever<Chroma>) {
     const chain = RunnableSequence.from([
       {
-        question: (data: { question: string; chatHistory?: string }) => {
+        question: (data: {
+          question: string;
+          chatHistory?: {
+            context: any[];
+            role: 'ai' | 'user';
+            content: string;
+          }[];
+        }) => {
           return data.question.trim().replace(/\n/g, ' ');
         },
-        chatHistory: (data: { question: string; chatHistory?: string }) =>
-          data.chatHistory ?? '',
-        context: async (input: { question: string; chatHistory?: string }) => {
+        chatHistory: (data: {
+          question: string;
+          chatHistory?: {
+            context: any[];
+            role: 'ai' | 'user';
+            content: string;
+          }[];
+        }) => data.chatHistory ?? '',
+        context: async (input: {
+          question: string;
+          chatHistory?: {
+            context: any[];
+            role: 'ai' | 'user';
+            content: string;
+          }[];
+        }) => {
           const relatedDocs = await retriever.getRelevantDocuments(
             input.question,
           );
@@ -238,9 +254,18 @@ export class CommonService {
   }
 
   // { id, role, content } message
-  async generateAIResponse(data: { question: string; chatHistory?: string }) {
-    const pineconeClient = this.getPineconeClient();
-    const vectorStore = await this.getVectorStore(pineconeClient);
+  async generateAIResponse(data: {
+    question: string;
+    chatHistory?: { context: any[]; role: 'ai' | 'user'; content: string }[];
+    openAIApiKey: string;
+    chatRoomId: string;
+  }) {
+    const vectorStore = await this.getVectorStore(
+      data.openAIApiKey,
+      this.getCollectionName({
+        chatRoomId: data.chatRoomId,
+      }),
+    );
     const retriever = vectorStore.asRetriever();
     const chain = this.getChain(retriever);
     return await chain.invoke({

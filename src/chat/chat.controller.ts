@@ -1,15 +1,28 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Param, Post } from '@nestjs/common';
 import { ChatDTO } from './dto';
 import { ChatService } from './chat.service';
-import { Public } from 'src/guards';
+import { User } from 'src/decorators';
 
 @Controller('/chat')
 export class ChatController {
   constructor(private chatService: ChatService) {}
 
-  @Public()
-  @Post('/')
-  chat(@Body() data: ChatDTO) {
-    return this.chatService.chat(data);
+  @Post('/:id')
+  chat(
+    @User('organizationId') organizationId: string,
+    @Param('id') chatroomId: string,
+    @Body() data: ChatDTO,
+  ) {
+    return this.chatService.chat(organizationId, chatroomId, data);
   }
+
+  @Post('/:id/start')
+  startChat(@Param('id') chatroomId: string) {
+    return this.chatService.startChat(chatroomId);
+  }
+
+  // @Post('/:id/end')
+  // endChat(@UserId() userId: string, @Param('id') chatroomId: string) {
+  //   return this.chatService.endChat(userId, chatroomId);
+  // }
 }

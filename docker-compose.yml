@@ -8,6 +8,17 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: 1234
       POSTGRES_DB: knowledge
+    depends_on:
+      - knowledge-chromadb
+    networks:
+      - KnowlEdgeV1
+  knowledge-chromadb:
+    container_name: 'chromadb'
+    image: ghcr.io/chroma-core/chroma:${CHROMA_VERSION}
+    env_file:
+      - .env
+    ports:
+      - 8000:8000
     networks:
       - KnowlEdgeV1
 networks:

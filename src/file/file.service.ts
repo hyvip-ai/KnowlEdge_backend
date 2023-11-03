@@ -1,5 +1,6 @@
 import { BadRequestException, HttpException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Status } from '@prisma/client';
 import { decode } from 'base64-arraybuffer';
 import { CommonService } from 'src/common/common.service';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -25,6 +26,7 @@ export class FileService {
             name: true,
           },
         },
+        status: true,
       },
     });
 
@@ -56,9 +58,16 @@ export class FileService {
         (error as any).statusCode,
       );
     }
-    if (data) {
-      return { data: {}, message: 'SUCCESS', statusCode: 201 };
+
+    try {
+      if (chatRoom.status === Status.PENDING) {
+        await this.common.updateChatRoomStatus(chatRoomId, Status.READY);
+      }
+    } catch (err) {
+      this.common.generateErrorResponse(err, 'Chat room');
     }
+
+    return { data: data.path, message: 'SUCCESS', statusCode: 201 };
   }
 
   async filesByChatRoom(chatRoomId: string) {
@@ -85,6 +94,10 @@ export class FileService {
         offset: 0,
       });
 
+    const files = data.filter(
+      (file) => file.name !== '.emptyFolderPlaceholder',
+    );
+
     if (error) {
       throw new HttpException(
         {
@@ -95,9 +108,8 @@ export class FileService {
         (error as any).statusCode,
       );
     }
-    if (data) {
-      return { data, message: 'SUCCESS', statusCode: 201 };
-    }
+
+    return { data: files, message: 'SUCCESS', statusCode: 201 };
   }
 
   async signedUrl(chatRoomId: string, fileName: string) {
@@ -158,7 +170,7 @@ export class FileService {
 
     const supabaseClient = this.common.getSupabaseClient();
 
-    const { data, error } = await supabaseClient.storage
+    const { error } = await supabaseClient.storage
       .from(this.config.get('SUPABASE_BUCKET_NAME'))
       .remove([
         `${chatRoom.organization.name}/chat_room_${chatRoom.id}/${fileName}`,
@@ -174,10 +186,17 @@ export class FileService {
         (error as any).statusCode,
       );
     }
-    if (data) {
-      return { data: {}, message: 'SUCCESS', statusCode: 201 };
+
+    const files = await this.filesByChatRoom(chatRoomId);
+
+    try {
+      if (!files.data.length) {
+        await this.common.updateChatRoomStatus(chatRoomId, Status.PENDING);
+      }
+    } catch (err) {
+      this.common.generateErrorResponse(err, 'Chat room');
     }
 
-    return null;
+    return { data: {}, message: 'SUCCESS', statusCode: 201 };
   }
 }

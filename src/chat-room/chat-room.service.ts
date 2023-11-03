@@ -1,8 +1,7 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { CreateChatRoomDTO } from './dto';
 import { CommonService } from 'src/common/common.service';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { Status } from '@prisma/client';
 
 @Injectable()
 export class ChatRoomService {
@@ -75,39 +74,6 @@ export class ChatRoomService {
       });
     } catch (err) {
       this.common.generateErrorResponse(err, 'Chat Room');
-    }
-  }
-
-  async loadFiles(chatroomId: string) {
-    const chatRoom = await this.prisma.chatRoom.findUnique({
-      where: {
-        id: chatroomId,
-      },
-      select: {
-        id: true,
-        organization: {
-          select: {
-            name: true,
-          },
-        },
-      },
-    });
-
-    if (!chatRoom) throw new BadRequestException('Chat room not found');
-
-    try {
-      await this.common.loadPDFs(chatRoom.id, chatRoom.organization.name);
-      await this.prisma.chatRoom.update({
-        where: {
-          id: chatroomId,
-        },
-        data: {
-          status: Status.READY,
-        },
-      });
-    } catch (err) {
-      console.log(err);
-      throw new BadRequestException(err.message);
     }
   }
 }
