@@ -19,12 +19,14 @@ import { formatDocumentsAsString } from 'langchain/util/document';
 import { Chroma } from 'langchain/vectorstores/chroma';
 import { Status } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { ChromaClient } from 'chromadb';
 
 @Injectable()
 export class CommonService {
   constructor(private config: ConfigService, private prisma: PrismaService) {}
 
   private supabaseClient: SupabaseClient;
+  private chromaClient: ChromaClient;
 
   hashData(password: string) {
     return argon2.hash(password);
@@ -64,6 +66,15 @@ export class CommonService {
 
   getCollectionName(data: { chatRoomId: string }) {
     return `chat_room_${data.chatRoomId}`;
+  }
+
+  async getChromaClient() {
+    if (this.chromaClient) {
+      return this.chromaClient;
+    }
+    const { ChromaClient } = await Chroma.imports();
+    this.chromaClient = new ChromaClient();
+    return this.chromaClient;
   }
 
   async updateChatRoomStatus(chatRoomId: string, status: Status) {
@@ -106,6 +117,7 @@ export class CommonService {
 
     await Chroma.fromDocuments(docs, embeddings, {
       collectionName,
+      url: this.config.get('CHROMA_URL'),
     });
   }
 
@@ -116,12 +128,13 @@ export class CommonService {
 
     const vectorStore = await Chroma.fromExistingCollection(embeddings, {
       collectionName,
+      url: this.config.get('CHROMA_URL'),
     });
 
     return vectorStore;
   }
 
-  async startChat(
+  async loadAllFilesByChatRoom(
     chatRoomId: string,
     organizationName: string,
     openAIApiKey: string,
@@ -185,14 +198,32 @@ export class CommonService {
     );
   }
 
-  async endChat() {
-    return null;
+  async startChat(
+    chatRoomId: string,
+    organizationName: string,
+    openAIApiKey: string,
+  ) {
+    const chromaClient = await this.getChromaClient();
+    const collections = await chromaClient.listCollections();
+    if (
+      collections
+        .map((collection) => collection.name)
+        .includes(this.getCollectionName({ chatRoomId }))
+    ) {
+      return;
+    }
+    await this.loadAllFilesByChatRoom(
+      chatRoomId,
+      organizationName,
+      openAIApiKey,
+    );
   }
 
   async performQuestionAnswering(data: {
     question: string;
     chatHistory?: { context: any[]; role: 'ai' | 'user'; content: string }[];
     context: Array<Document>;
+    openAIApiKey: string;
   }) {
     const newQuestion = data.question;
     const chatHistoryString = data.chatHistory.length
@@ -204,7 +235,7 @@ export class CommonService {
     const relevantContext = data.context.slice(0, 2);
     const serializedContext = formatDocumentsAsString(relevantContext);
 
-    const { text } = await qaChain.invoke({
+    const { text } = await qaChain(data.openAIApiKey).invoke({
       chatHistory: chatHistoryString,
       context: serializedContext,
       question: newQuestion,
@@ -223,6 +254,7 @@ export class CommonService {
             role: 'ai' | 'user';
             content: string;
           }[];
+          openAIApiKey: string;
         }) => {
           return data.question.trim().replace(/\n/g, ' ');
         },
@@ -233,6 +265,7 @@ export class CommonService {
             role: 'ai' | 'user';
             content: string;
           }[];
+          openAIApiKey: string;
         }) => data.chatHistory ?? '',
         context: async (input: {
           question: string;
@@ -241,11 +274,23 @@ export class CommonService {
             role: 'ai' | 'user';
             content: string;
           }[];
+          openAIApiKey: string;
         }) => {
           const relatedDocs = await retriever.getRelevantDocuments(
             input.question,
           );
           return relatedDocs;
+        },
+        openAIApiKey: (data: {
+          question: string;
+          chatHistory?: {
+            context: any[];
+            role: 'ai' | 'user';
+            content: string;
+          }[];
+          openAIApiKey: string;
+        }) => {
+          return data.openAIApiKey;
         },
       },
       this.performQuestionAnswering,
@@ -253,7 +298,6 @@ export class CommonService {
     return chain;
   }
 
-  // { id, role, content } message
   async generateAIResponse(data: {
     question: string;
     chatHistory?: { context: any[]; role: 'ai' | 'user'; content: string }[];
@@ -271,6 +315,7 @@ export class CommonService {
     return await chain.invoke({
       question: data.question,
       chatHistory: data.chatHistory,
+      openAIApiKey: data.openAIApiKey,
     });
   }
 }

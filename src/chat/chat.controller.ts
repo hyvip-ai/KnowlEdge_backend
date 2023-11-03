@@ -20,9 +20,4 @@ export class ChatController {
   startChat(@Param('id') chatroomId: string) {
     return this.chatService.startChat(chatroomId);
   }
-
-  // @Post('/:id/end')
-  // endChat(@UserId() userId: string, @Param('id') chatroomId: string) {
-  //   return this.chatService.endChat(userId, chatroomId);
-  // }
 }

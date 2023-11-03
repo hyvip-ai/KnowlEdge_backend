@@ -73,8 +73,4 @@ export class ChatService {
       throw new BadRequestException(err.message);
     }
   }
-
-  // async endChat(userId: string, chatroomId: string) {
-  //   return null;
-  // }
 }
