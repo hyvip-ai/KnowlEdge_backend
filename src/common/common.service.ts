@@ -73,7 +73,9 @@ export class CommonService {
       return this.chromaClient;
     }
     const { ChromaClient } = await Chroma.imports();
-    this.chromaClient = new ChromaClient();
+    this.chromaClient = new ChromaClient({
+      path: this.config.get('CHROMA_URL'),
+    });
     return this.chromaClient;
   }
 
